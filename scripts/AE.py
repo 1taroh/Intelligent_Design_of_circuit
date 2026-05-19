@@ -28,6 +28,7 @@ r = 0.8
 epochs = 301
 lr = 0.01
 batch_size = 128
+latent_dim = 2
 
 fs = torch.logspace(1, 5, 100)
 rc_dataset = RCDataset(num_samples=1000, R_range=[10e3, 100e3], C_range=[1e-9, 10e-9], fs=fs)
@@ -51,10 +52,9 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 H, circuit_params = train_dataset[0]
-model = Autoencoder(input_dim=len(H), latent_dim=len(circuit_params)).to(device)
+model = Autoencoder(input_dim=len(H), latent_dim=latent_dim).to(device)
 # なお，latent_dim=1 でも学習できる．
 # CRフィルタの応答は共振周波数で一意に定まるためであり，1次元のボトルネックで過不足なく情報を保持できる．
-# model = Autoencoder(input_dim=len(H), latent_dim=1).to(device)
 
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -110,8 +110,24 @@ plot_freq_response_comparison(fs, Hs_actual, Hs_pred, Rs, Cs)
 # latent_dim = 1 の場合は適宜変更してください
 Hs_actual_scaled, _ = val_dataset[:]
 z = model.encoder(Hs_actual_scaled.to(device))
-
-plt.figure()
-plt.scatter(z[:, 0].detach().cpu().numpy(), z[:, 1].detach().cpu().numpy())
+if latent_dim == 2:
+    plt.figure()
+    plt.scatter(z[:, 0].detach().cpu().numpy(), z[:, 1].detach().cpu().numpy(), alpha=0.5)
+    plt.xlabel('Latent Dimension 1')
+    plt.ylabel('Latent Dimension 2')
+    plt.title('Latent Space Distribution (2D)')
+    plt.grid(True, linestyle='--', alpha=0.6)
+elif latent_dim == 1:
+    # ヒストグラムとして可視化
+    hist_values = z.detach().cpu().numpy()
+    plt.figure()
+    plt.hist(hist_values, bins=50, edgecolor='black', alpha=0.7, color='skyblue')
+    plt.xlabel('Latent Dimension')
+    plt.ylabel('Frequency')
+    plt.title('Latent Space Distribution (1D Histogram)')
+    plt.grid(True, axis='y', linestyle='--', alpha=0.6)
+else:
+    print("no output.")
+    pass
 
 plt.show()
